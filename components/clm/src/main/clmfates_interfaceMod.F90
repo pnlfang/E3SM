@@ -1270,7 +1270,38 @@ contains
      integer :: j
      integer :: s
      integer :: c
+      integer  :: yr                       ! year (0, ...)
+      integer  :: mon                      ! month (1, ..., 12)
+      integer  :: day                      ! day of month (1, ..., 31)
+      integer  :: sec                      ! seconds of the day
+      integer  :: current_year             
+      integer  :: current_month
+      integer  :: current_day
+      integer  :: current_tod
+      integer  :: current_date
+      integer  :: jan01_curr_year
+      integer  :: reference_date
+      integer  :: days_per_year
+      real(r8) :: model_day
+      real(r8) :: day_of_year
 
+      days_per_year = get_days_per_year()
+      call get_curr_date(current_year,current_month,current_day,current_tod)
+      current_date = current_year*10000 + current_month*100 + current_day
+      jan01_curr_year = current_year*10000 + 100 + 1
+
+      call get_ref_date(yr, mon, day, sec)
+      reference_date = yr*10000 + mon*100 + day
+
+      call timemgr_datediff(reference_date, sec, current_date, current_tod, model_day)
+
+      call timemgr_datediff(jan01_curr_year,0,current_date,sec,day_of_year)
+      
+      call SetFatesTime(current_year, current_month, &
+                        current_day, current_tod, &
+                        current_date, reference_date, &
+                        model_day, floor(day_of_year), &
+                        days_per_year, 1.0_r8/dble(days_per_year))
      nclumps = get_proc_clumps()
 
      !$OMP PARALLEL DO PRIVATE (nc,bounds_clump,s,c,j,vol_ice,eff_porosity)
