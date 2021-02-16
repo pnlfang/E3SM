@@ -941,9 +941,9 @@ contains
             end if
                
             ! Calculate canopy conductance for methane / oxygen (e.g. stomatal conductance & leaf bdy cond)
-            if (use_lch4) then
+!            if (use_lch4) then
                canopy_cond(p) = (laisun(p)/(rb(p)+rssun(p)) + laisha(p)/(rb(p)+rssha(p)))/max(elai(p), 0.01_r8)
-            end if
+!            end if
 
             efpot = forc_rho(t)*wtl*(qsatl(p)-qaf(p))
             ! When the hydraulic stress parameterization is active calculate rpp
