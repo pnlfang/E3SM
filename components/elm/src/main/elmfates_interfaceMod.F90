@@ -54,6 +54,7 @@ module ELMFatesInterfaceMod
    use elm_varctl        , only : use_fates_logging
    use elm_varctl        , only : use_fates_inventory_init
    use elm_varctl        , only : use_fates_fixed_biogeog
+   use elm_varctl        , only : use_fates_macropore
    use elm_varctl        , only : fates_inventory_ctrl_filename
    use elm_varctl        , only : use_nitrif_denitrif
    use elm_varcon        , only : tfrz
@@ -251,6 +252,7 @@ contains
      integer                                        :: pass_logging
      integer                                        :: pass_ed_prescribed_phys
      integer                                        :: pass_planthydro
+     integer                                        :: pass_macropore
      integer                                        :: pass_inventory_init
      integer                                        :: pass_is_restart
      integer                                        :: pass_cohort_age_tracking
@@ -408,6 +410,13 @@ contains
            pass_planthydro = 0
         end if
         call set_fates_ctrlparms('use_planthydro',ival=pass_planthydro)
+
+        if(use_fates_macropore) then
+           pass_macropore = 1
+        else
+           pass_macropore = 0
+        end if
+        call set_fates_ctrlparms('use_macropore',ival=pass_macropore)
 
         if(use_fates_cohort_age_tracking) then
            pass_cohort_age_tracking = 1
@@ -1060,6 +1069,10 @@ contains
              write(iulog,*)'Projected Canopy Area of all FATES patches'
              write(iulog,*)'cannot exceed 1.0'
              !end_run()
+          end if
+
+          if (use_fates_macropore) then
+             col_wf%macropore_frac(c) = this%fates(nc)%bc_out(s)%mp_frac
           end if
 
           do ifp = 1, npatch

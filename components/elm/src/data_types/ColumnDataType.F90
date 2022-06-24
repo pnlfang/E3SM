@@ -441,6 +441,7 @@ module ColumnDataType
     real(r8), pointer :: qflx_infl            (:)   => null() ! infiltration (mm H2O /s)
     real(r8), pointer :: qflx_surf            (:)   => null() ! surface runoff (mm H2O /s)
     real(r8), pointer :: qflx_drain           (:)   => null() ! sub-surface runoff (mm H2O /s)
+    real(r8), pointer :: qflx_drain_mp        (:)   => null() ! sub-surface runoff due to macropores (mm H2O /s)
     real(r8), pointer :: qflx_totdrain        (:)   => null() 
     real(r8), pointer :: qflx_top_soil        (:)   => null() ! net water input into soil from top (mm/s)
     real(r8), pointer :: qflx_h2osfc_to_ice   (:)   => null() ! conversion of h2osfc to ice
@@ -491,6 +492,7 @@ module ColumnDataType
     real(r8), pointer :: mflx_et              (:,:) => null() ! evapotranspiration sink from all soil coontrol volumes (kg H2O /s)
     real(r8), pointer :: mflx_drain           (:,:) => null() ! drainage from groundwater table (kg H2O /s)
     real(r8), pointer :: mflx_recharge        (:)   => null() ! recharge from soil column to unconfined aquifer (kg H2O /s)
+    real(r8), pointer :: macropore_frac       (:)   => null() ! fraction of water to bypass soil matrix due to macropores (-)
 
   contains
     procedure, public :: Init    => col_wf_init
@@ -5222,6 +5224,7 @@ contains
     allocate(this%qflx_infl              (begc:endc))             ; this%qflx_infl            (:)   = nan
     allocate(this%qflx_surf              (begc:endc))             ; this%qflx_surf            (:)   = nan
     allocate(this%qflx_drain             (begc:endc))             ; this%qflx_drain           (:)   = nan
+    allocate(this%qflx_drain_mp          (begc:endc))             ; this%qflx_drain_mp        (:)   = nan
     allocate(this%qflx_totdrain          (begc:endc))             ; this%qflx_totdrain        (:)   = nan
     allocate(this%qflx_top_soil          (begc:endc))             ; this%qflx_top_soil        (:)   = nan
     allocate(this%qflx_h2osfc_to_ice     (begc:endc))             ; this%qflx_h2osfc_to_ice   (:)   = nan
@@ -5275,6 +5278,7 @@ contains
     allocate(this%mflx_et                (begc:endc,1:nlevgrnd))  ; this%mflx_et                         (:,:) = nan
     allocate(this%mflx_drain             (begc:endc,1:nlevgrnd))  ; this%mflx_drain                      (:,:) = nan
     allocate(this%mflx_recharge          (begc:endc))             ; this%mflx_recharge                   (:)   = nan
+    allocate(this%macropore_frac         (begc:endc))             ; this%macropore_frac                  (:)   = 0._r8
     
     !-----------------------------------------------------------------------
     ! initialize history fields for select members of col_wf
@@ -5303,6 +5307,11 @@ contains
     call hist_addfld1d (fname='QDRAI',  units='mm/s',  &
          avgflag='A', long_name='sub-surface drainage', &
          ptr_col=this%qflx_drain, c2l_scale_type='urbanf')
+
+    this%qflx_drain_mp(begc:endc) = spval
+    call hist_addfld1d (fname='QDRAI_MP',  units='mm/s',  &
+         avgflag='A', long_name='sub-surface drainage from macropores', &
+         ptr_col=this%qflx_drain_mp, c2l_scale_type='urbanf')
 		 
     this%qflx_irr_demand(begc:endc) = spval
     call hist_addfld1d (fname='QIRRIG_WM',  units='mm/s',  &
@@ -5416,6 +5425,7 @@ contains
        l = col_pp%landunit(c)
        if (lun_pp%itype(l) == istsoil .or. lun_pp%itype(l) == istcrop) then
           this%qflx_drain(c) = 0._r8
+          this%qflx_drain_mp(c) = 0._r8
           this%qflx_surf(c)  = 0._r8
        end if
     end do
@@ -5615,8 +5625,8 @@ contains
     allocate(this%vegfire                           (begc:endc))                  ; this%vegfire                      (:)   = nan    
     allocate(this%wood_harvestc                     (begc:endc))                  ; this%wood_harvestc                (:)   = nan    
     allocate(this%hrv_xsmrpool_to_atm               (begc:endc))                  ; this%hrv_xsmrpool_to_atm          (:)   = nan    
-    allocate(this%plant_to_litter_cflux             (begc:endc))                  ; this%plant_to_litter_cflux        (:)   = nan              
-    allocate(this%plant_to_cwd_cflux	             (begc:endc))                  ; this%plant_to_cwd_cflux		       (:)   = nan 
+    allocate(this%plant_to_litter_cflux             (begc:endc))                  ; this%plant_to_litter_cflux        (:)   = 0.              
+    allocate(this%plant_to_cwd_cflux	             (begc:endc))                  ; this%plant_to_cwd_cflux		       (:)   = 0.
     allocate(this%annsum_npp                        (begc:endc))                  ; this%annsum_npp                   (:)   = nan 
     ! C4MIP output variable
      allocate(this%plant_c_to_cwdc                  (begc:endc))                  ; this%plant_c_to_cwdc              (:)  =nan
@@ -7783,10 +7793,10 @@ contains
     allocate(this%actual_immob_nh4                (begc:endc))                    ; this%actual_immob_nh4              (:)   = nan
     allocate(this%smin_no3_to_plant               (begc:endc))                    ; this%smin_no3_to_plant             (:)   = nan
     allocate(this%smin_nh4_to_plant               (begc:endc))                    ; this%smin_nh4_to_plant             (:)   = nan 
-    allocate(this%plant_to_litter_nflux           (begc:endc))                    ; this%plant_to_litter_nflux         (:)   = nan
-    allocate(this%plant_to_cwd_nflux              (begc:endc))                    ; this%plant_to_cwd_nflux            (:)   = nan
+    allocate(this%plant_to_litter_nflux           (begc:endc))                    ; this%plant_to_litter_nflux         (:)   = 0
+    allocate(this%plant_to_cwd_nflux              (begc:endc))                    ; this%plant_to_cwd_nflux            (:)   = 0
     ! C4MIP output variable
-    allocate(this%plant_n_to_cwdn                  (begc:endc))                   ; this%plant_n_to_cwdn               (:)  =nan
+    allocate(this%plant_n_to_cwdn                  (begc:endc))                   ; this%plant_n_to_cwdn               (:)  =0
 
 
     allocate(this%bgc_npool_ext_inputs_vr         (begc:endc,1:nlevdecomp_full,ndecomp_pools                )) ; this%bgc_npool_ext_inputs_vr          (:,:,:) = nan
@@ -9724,8 +9734,8 @@ contains
     allocate(this%soil_p_immob_flux_vr             (begc:endc,1:nlevdecomp_full)) ; this%soil_p_immob_flux_vr          (:,:) = nan
     allocate(this%soil_p_grossmin_flux             (begc:endc))                   ; this%soil_p_grossmin_flux          (:)   = nan
     allocate(this%smin_p_to_plant                  (begc:endc))                   ; this%smin_p_to_plant               (:)   = nan
-    allocate(this%plant_to_litter_pflux            (begc:endc))                   ; this%plant_to_litter_pflux         (:)   = nan
-    allocate(this%plant_to_cwd_pflux               (begc:endc))                   ; this%plant_to_cwd_pflux            (:)   = nan
+    allocate(this%plant_to_litter_pflux            (begc:endc))                   ; this%plant_to_litter_pflux         (:)   = 0.
+    allocate(this%plant_to_cwd_pflux               (begc:endc))                   ; this%plant_to_cwd_pflux            (:)   = 0.
     allocate(this%plant_pdemand                    (begc:endc))                   ; this%plant_pdemand                 (:)   = nan
     allocate(this%plant_pdemand_vr                 (begc:endc,1:nlevdecomp_full)) ; this%plant_pdemand_vr              (:,:) = nan
     allocate(this%col_plant_pdemand_vr            (begc:endc,1:nlevdecomp))       ; this%col_plant_pdemand_vr          (:,:) = nan
