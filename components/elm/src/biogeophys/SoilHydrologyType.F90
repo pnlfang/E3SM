@@ -271,6 +271,7 @@ contains
     real(r8) ,pointer  :: zsoifl     (:)   ! original soil midpoint 
     real(r8) ,pointer  :: dzsoifl    (:)   ! original soil thickness 
     real(r8) ,pointer  :: fdrain     (:)   ! top-model drainage parameter
+    real(r8) :: fd_tmp
     !-----------------------------------------------------------------------
 
     ! -----------------------------------------------------------------
@@ -542,7 +543,11 @@ contains
        fdrain(:) = 2.5_r8
     end if
     call ncd_pio_closefile(ncid)
-
+    if(.not.readvar) then
+      open(99010,file='my_param.txt',status='old')
+      read(99010,*) fd_tmp
+      fdrain(:) = fd_tmp
+    endif
     associate(micro_sigma => col_pp%micro_sigma)
       do c = bounds%begc, bounds%endc
 
@@ -570,6 +575,10 @@ contains
 
          ! set decay factor
          this%hkdepth_col(c) = 1._r8/2.5_r8
+         g = col_pp%gridcell(c)
+         this%hkdepth_col(c) = 1._r8/fdrain(g)
+!print *,'g-',g,this%hkdepth_col(c)
+!stop
 
       end do
     end associate

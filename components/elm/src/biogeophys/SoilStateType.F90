@@ -417,12 +417,17 @@ contains
     ! dynamic memory allocation
     ! --------------------------------------------------------------------
 
+!    allocate(fd2d(begg:endg,max_topounits))
     allocate(sand3d(begg:endg,max_topounits,nlevsoifl))
     allocate(clay3d(begg:endg,max_topounits,nlevsoifl))
     allocate(grvl3d(begg:endg,max_topounits,nlevsoifl))
     ! --------------------------------------------------------------------
     ! Read surface dataset
     ! --------------------------------------------------------------------
+!    call ncd_io(ncid=ncid, varname='FD', flag='read', data=fd2d, dim1name=grlnd, readvar=readvar)
+!    if (.not. readvar) then
+!       call endrun(msg=' ERROR: FD NOT on surfdata file'//errMsg(__FILE__, __LINE__))
+!    end if
 
     if (masterproc) then
        write(iulog,*) 'Attempting to read soil color, sand and clay boundary data .....'
@@ -447,6 +452,7 @@ contains
 
     allocate(organic3d(bounds%begg:bounds%endg,max_topounits, nlevsoifl))
     call organicrd(organic3d)
+
 
     ! Read in sand, clay, gravel data
 
