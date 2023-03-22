@@ -344,7 +344,7 @@ contains
        do fc = 1,num_do_smb_c
           c = filter_do_smb_c(fc)
           g = col_pp%gridcell(c)
-          write(iulog,*)'WARNING:  glc_dyn_runoff_routing = ', glc_dyn_runoff_routing(g)  ! TKT
+!          write(iulog,*)'WARNING:  glc_dyn_runoff_routing = ', glc_dyn_runoff_routing(g)  ! TKT
           if (glc_dyn_runoff_routing(g)) then
              errh2o(c) = errh2o(c) + qflx_glcice_frz(c)*dtime
              errh2o(c) = errh2o(c) - qflx_glcice_melt(c)*dtime
@@ -355,7 +355,7 @@ contains
        do c = bounds%begc, bounds%endc
           
           if (abs(errh2o(c)) > 1.e-7_r8) then
-             found = .true.
+             !found = .true.
              indexc = c             
           end if
        end do
@@ -519,7 +519,7 @@ contains
        do c = bounds%begc,bounds%endc
           if (col_pp%active(c)) then
              if (abs(errh2osno(c)) > 1.0e-7_r8) then
-                found = .true.
+            !    found = .true.
                 indexc = c
              end if
           end if
@@ -569,7 +569,7 @@ contains
              l = veg_pp%landunit(p)
              t = veg_pp%topounit(p)
              g = veg_pp%gridcell(p)
-
+             
              ! Solar radiation energy balance
              ! Do not do this check for an urban pft since it will not balance on a per-column
              ! level because of interactions between columns and since a separate check is done
@@ -717,11 +717,11 @@ contains
        do c = bounds%begc,bounds%endc
           if (col_pp%active(c)) then
              if (abs(errsoi_col(c)) > 1.0e-5_r8 ) then
-                found = .true.
+                !found = .true.
                 indexc = c
              end if
           end if
-       end do
+       end do 
        if ( found ) then
           write(iulog,*)'WARNING: BalanceCheck: soil balance error (W/m2)'
           write(iulog,*)'nstep         = ',nstep

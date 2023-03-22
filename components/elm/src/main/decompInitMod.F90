@@ -73,6 +73,7 @@ contains
     integer, pointer :: clumpcnt(:)   ! clump index counter
     integer, allocatable :: proc_ncell(:) ! number of cells assigned to a process
     integer, allocatable :: proc_begg(:)  ! beginning cell index assigned to a process
+    integer :: an_r
     !------------------------------------------------------------------------------
 
     lns = lni * lnj
@@ -170,7 +171,7 @@ contains
           numg = numg + 1
        endif
     enddo
-   
+!    lns = numg 
     if (npes > numg) then
        write(iulog,*) 'decompInit_lnd(): Number of processes exceeds number ', &
             'of land grid cells',npes,numg
@@ -274,6 +275,7 @@ contains
     ! Set ldecomp
 
     allocate(ldecomp%gdc2glo(numg), stat=ier)
+    allocate(ldecomp%gdc2glo_rc(numg), stat=ier)
     if (ier /= 0) then
        write(iulog,*) 'decompInit_lnd(): allocation error1 for ldecomp, etc'
        call endrun(msg=errMsg(__FILE__, __LINE__))
@@ -285,6 +287,7 @@ contains
     end if
 
     ldecomp%gdc2glo(:) = 0
+    ldecomp%gdc2glo_rc(:) = 0
     ag = 0
 
     ! clumpcnt is the start gdc index of each clump
@@ -296,7 +299,7 @@ contains
 
     ! now go through gridcells one at a time and increment clumpcnt
     ! in order to set gdc2glo
-
+#if 0
     do aj = 1,lnj
     do ai = 1,lni
        an = (aj-1)*lni + ai
@@ -308,6 +311,25 @@ contains
        end if
     end do
     end do
+#endif
+
+    ! now go through gridcells one at a time and increment clumpcnt
+    ! in order to set gdc2glo
+    an_r = 0
+    do aj = 1,lnj
+    do ai = 1,lni
+       an = (aj-1)*lni + ai
+       cid = lcid(an)
+       if (cid > 0) then
+          an_r = an_r + 1
+          ag = clumpcnt(cid)
+          ldecomp%gdc2glo(ag) = an
+          ldecomp%gdc2glo_rc(ag) = an_r
+          clumpcnt(cid) = clumpcnt(cid) + 1
+       end if
+    end do
+    end do
+
 
     deallocate(clumpcnt)
 
@@ -1260,6 +1282,7 @@ contains
     procinfo%cid(:)    = -1
     procinfo%ncells    = 0
     procinfo%nlunits   = 0
+    procinfo%ntunits   = 0
     procinfo%ncols     = 0
     procinfo%npfts     = 0
     procinfo%nCohorts  = 0
@@ -1281,6 +1304,7 @@ contains
     end if
     clumps(:)%owner     = -1
     clumps(:)%ncells    = 0
+    clumps(:)%ntunits    = 0
     clumps(:)%nlunits   = 0
     clumps(:)%ncols     = 0
     clumps(:)%npfts     = 0
@@ -1336,8 +1360,8 @@ contains
     end if
 
     if (numg /= lns) then
-       write(iulog,*) trim(subname) // '(): Only implimented for numg == lns '
-       call endrun(msg=errMsg(__FILE__, __LINE__))
+!       write(iulog,*) trim(subname) // '(): Only implimented for numg == lns '
+!       call endrun(msg=errMsg(__FILE__, __LINE__))
     end if
 
     ! Determine the cell id offset on each processor
@@ -1684,7 +1708,8 @@ contains
 
     ! Set lcid
 
-    allocate(lcid(lns))
+!    allocate(lcid(lns))
+    allocate(lcid(numg))
     lcid(:) = 0
 
     call VecGetArrayF90(lcid_aft_decomp_for_all_procs, real_ptr, ierr); CHKERRQ(ierr)
@@ -1903,13 +1928,55 @@ contains
        procinfo%begCohort_all   = procinfo%begCohort
 
        ! Set 'end' index for subgrid categories
+#if 0
        procinfo%endg_all        = procinfo%endg      + procinfo%ncells_ghost
        procinfo%endt_all        = procinfo%endt      + procinfo%ntunits_ghost
        procinfo%endl_all        = procinfo%endl      + procinfo%nlunits_ghost
        procinfo%endc_all        = procinfo%endc      + procinfo%ncols_ghost
        procinfo%endp_all        = procinfo%endp      + procinfo%npfts_ghost
        procinfo%endCohort_all   = procinfo%endCohort + procinfo%nCohorts_ghost
+#endif
 
+       ! Set 'end' index for subgrid categories
+       procinfo%endg_all        = procinfo%endg
+       procinfo%endt_all        = procinfo%endt
+       procinfo%endl_all        = procinfo%endl
+       procinfo%endc_all        = procinfo%endc
+       procinfo%endp_all        = procinfo%endp
+       procinfo%endCohort_all   = procinfo%endCohort
+
+       if (procinfo%ncells_ghost > 0) then
+
+          procinfo%begg_ghost      = 1;
+          procinfo%begt_ghost      = 1;
+          procinfo%begl_ghost      = 1;
+          procinfo%begc_ghost      = 1;
+          procinfo%begp_ghost      = 1;
+          procinfo%begCohort_ghost = 1;
+
+          procinfo%endg_ghost      = procinfo%ncells_ghost
+          procinfo%endt_ghost      = procinfo%ntunits_ghost
+          procinfo%endl_ghost      = procinfo%nlunits_ghost
+          procinfo%endc_ghost      = procinfo%ncols_ghost
+          procinfo%endp_ghost      = procinfo%npfts_ghost
+          procinfo%endCohort_ghost = procinfo%ncohorts_ghost
+
+       else
+
+          procinfo%begg_ghost      = 0
+          procinfo%begt_ghost      = 0
+          procinfo%begl_ghost      = 0
+          procinfo%begc_ghost      = 0
+          procinfo%begp_ghost      = 0
+          procinfo%begCohort_ghost = 0
+
+          procinfo%endg_ghost      = 0
+          procinfo%endt_ghost      = 0
+          procinfo%endl_ghost      = 0
+          procinfo%endc_ghost      = 0
+          procinfo%endp_ghost      = 0
+          procinfo%endCohort_ghost = 0
+       end if
 #endif
 
     endif

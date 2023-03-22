@@ -1,0 +1,78 @@
+#!/bin/tcsh
+##SBATCH -t 00:30:00
+#SBATCH -t 20:30:00
+#SBATCH -N 2 
+#SBATCH -o ./batch.out
+#SBATCH -e ./batch.err
+#SBATCH -A ngee_tropics
+#SBATCH -n 48 
+
+module purge
+unset LD_LIBRARY_PATH
+module load precision/i4
+module load pgi/14.10
+module load mvapich2/2.1
+module load netcdf/4.1.3
+module load nco
+module load ncl
+
+setenv ESMF_DIR /pic/projects/ngee_tropics/d3m045/esmf
+setenv ESMF_OS Linux
+setenv ESMF_COMPILER pgi
+setenv ESMF_CXX mpicxx
+setenv ESMF_F90 mpif90
+setenv ESMF_COMM mvapich2
+setenv ESMF_NETCDF "split"
+setenv ESMF_NETCDF_INCLUDE ${NETCDF_INCLUDE}
+setenv ESMF_NETCDF_LIBPATH ${NETCDF_LIB}
+setenv ESMF_INSTALL_PREFIX /pic/projects/ngee_tropics/d3m045/esmf/constance
+
+setenv ESMFBIN_PATH /pic/projects/ngee_tropics/d3m045/esmf/constance/bin/binO/Linux.pgi.64.mvapich2.default/
+setenv ESMFLIB_PATH /pic/projects/ngee_tropics/d3m045/esmf/constance/bin/binO/Linux.pgi.64.mvapich2.default/
+setenv ESMFMKFILE /pic/projects/ngee_tropics/d3m045/esmf/bin/binO/Linux.pgi.64.mvapich2.default/esmf.mk
+ 
+setenv GRIDFILE '../mkmapgrids/SCRIPgrid_LowerMiss_625x900_nomask_c220324.nc'
+setenv MAPFILE 'map_LowerMiss_625x900_noocean_to_LowerMiss_625x900_nomask_aave_da_220324.nc'
+setenv GRIDNAME LowerMiss_625x900
+setenv REGRID_PROC 48
+setenv MPIEXEC 'srun -n 48'
+#setenv INPUTDATA_PATH /compfs/inputdata
+setenv INPUTDATA_PATH /pic/projects/ngee_tropics/amazon/inputdata/ccsm
+#setenv CDATE 'c220315' 
+#module load ncl
+#module load nco
+#./mkmapdata.sh -r $GRIDNAME -f $GRIDFILE -t regional -b -v
+#debug
+#./mkmapdata.sh -i $INPUTDATA_PATH -r $GRIDNAME -f $GRIDFILE -t regional  -o 64bit_offset -d -b -v --list
+#./mkmapdata.sh -i $INPUTDATA_PATH -r $GRIDNAME -f $GRIDFILE -t regional  -o 64bit_offset -b -v --list
+
+ 
+srun -n 48 /pic/projects/ngee_tropics/d3m045/esmf/constance/bin/binO/Linux.pgi.64.mvapich2.default//ESMF_RegridWeightGen --ignore_unmapped -s /pic/projects/ngee_tropics/amazon/inputdata/ccsm/lnd/clm2/mappingdata/grids/SCRIPgrid_3minx3min_LandScan2004_c120517.nc -d ../mkmapgrids/SCRIPgrid_LowerMiss_625x900_nomask_c220324.nc -m conserve -w map_3x3min_LandScan2004_to_LowerMiss_625x900_nomask_aave_da_c220324.nc --src_type SCRIP --dst_type SCRIP --64bit_offset
+ 
+srun -n 48 /pic/projects/ngee_tropics/d3m045/esmf/constance/bin/binO/Linux.pgi.64.mvapich2.default//ESMF_RegridWeightGen --ignore_unmapped -s /pic/projects/ngee_tropics/amazon/inputdata/ccsm/lnd/clm2/mappingdata/grids/SCRIPgrid_3minx3min_MODIS_c110915.nc -d ../mkmapgrids/SCRIPgrid_LowerMiss_625x900_nomask_c220324.nc -m conserve -w map_3x3min_MODIS_to_LowerMiss_625x900_nomask_aave_da_c220324.nc --src_type SCRIP --dst_type SCRIP --64bit_offset
+ 
+srun -n 48 /pic/projects/ngee_tropics/d3m045/esmf/constance/bin/binO/Linux.pgi.64.mvapich2.default//ESMF_RegridWeightGen --ignore_unmapped -s /pic/projects/ngee_tropics/amazon/inputdata/ccsm/lnd/clm2/mappingdata/grids/SCRIPgrid_3x3_USGS_c120912.nc -d ../mkmapgrids/SCRIPgrid_LowerMiss_625x900_nomask_c220324.nc -m conserve -w map_3x3min_USGS_to_LowerMiss_625x900_nomask_aave_da_c220324.nc --src_type SCRIP --dst_type SCRIP --64bit_offset
+ 
+srun -n 48 /pic/projects/ngee_tropics/d3m045/esmf/constance/bin/binO/Linux.pgi.64.mvapich2.default//ESMF_RegridWeightGen --ignore_unmapped -s /pic/projects/ngee_tropics/amazon/inputdata/ccsm/lnd/clm2/mappingdata/grids/SCRIPgrid_5x5min_nomask_c110530.nc -d ../mkmapgrids/SCRIPgrid_LowerMiss_625x900_nomask_c220324.nc -m conserve -w map_5x5min_nomask_to_LowerMiss_625x900_nomask_aave_da_c220324.nc --src_type SCRIP --dst_type SCRIP --64bit_offset
+ 
+srun -n 48 /pic/projects/ngee_tropics/d3m045/esmf/constance/bin/binO/Linux.pgi.64.mvapich2.default//ESMF_RegridWeightGen --ignore_unmapped -s /pic/projects/ngee_tropics/amazon/inputdata/ccsm/lnd/clm2/mappingdata/grids/SCRIPgrid_5x5min_IGBP-GSDP_c110228.nc -d ../mkmapgrids/SCRIPgrid_LowerMiss_625x900_nomask_c220324.nc -m conserve -w map_5x5min_IGBP-GSDP_to_LowerMiss_625x900_nomask_aave_da_c220324.nc --src_type SCRIP --dst_type SCRIP --64bit_offset
+ 
+srun -n 48 /pic/projects/ngee_tropics/d3m045/esmf/constance/bin/binO/Linux.pgi.64.mvapich2.default//ESMF_RegridWeightGen --ignore_unmapped -s /pic/projects/ngee_tropics/amazon/inputdata/ccsm/lnd/clm2/mappingdata/grids/SCRIPgrid_5x5min_ISRIC-WISE_c111114.nc -d ../mkmapgrids/SCRIPgrid_LowerMiss_625x900_nomask_c220324.nc -m conserve -w map_5x5min_ISRIC-WISE_to_LowerMiss_625x900_nomask_aave_da_c220324.nc --src_type SCRIP --dst_type SCRIP --64bit_offset
+ 
+srun -n 48 /pic/projects/ngee_tropics/d3m045/esmf/constance/bin/binO/Linux.pgi.64.mvapich2.default//ESMF_RegridWeightGen --ignore_unmapped -s /pic/projects/ngee_tropics/amazon/inputdata/ccsm/lnd/clm2/mappingdata/grids/SCRIPgrid_10x10min_nomask_c110228.nc -d ../mkmapgrids/SCRIPgrid_LowerMiss_625x900_nomask_c220324.nc -m conserve -w map_10x10min_nomask_to_LowerMiss_625x900_nomask_aave_da_c220324.nc --src_type SCRIP --dst_type SCRIP --64bit_offset
+ 
+srun -n 48 /pic/projects/ngee_tropics/d3m045/esmf/constance/bin/binO/Linux.pgi.64.mvapich2.default//ESMF_RegridWeightGen --ignore_unmapped -s /pic/projects/ngee_tropics/amazon/inputdata/ccsm/lnd/clm2/mappingdata/grids/SCRIPgrid_10x10min_IGBPmergeICESatGIS_c110818.nc -d ../mkmapgrids/SCRIPgrid_LowerMiss_625x900_nomask_c220324.nc -m conserve -w map_10x10min_IGBPmergeICESatGIS_to_LowerMiss_625x900_nomask_aave_da_c220324.nc --src_type SCRIP --dst_type SCRIP --64bit_offset
+ 
+srun -n 48 /pic/projects/ngee_tropics/d3m045/esmf/constance/bin/binO/Linux.pgi.64.mvapich2.default//ESMF_RegridWeightGen --ignore_unmapped -s /pic/projects/ngee_tropics/amazon/inputdata/ccsm/lnd/clm2/mappingdata/grids/SCRIPgrid_3minx3min_GLOBE-Gardner_c120922.nc -d ../mkmapgrids/SCRIPgrid_LowerMiss_625x900_nomask_c220324.nc -m conserve -w map_3x3min_GLOBE-Gardner_to_LowerMiss_625x900_nomask_aave_da_c220324.nc --src_type SCRIP --dst_type SCRIP --64bit_offset
+ 
+srun -n 48 /pic/projects/ngee_tropics/d3m045/esmf/constance/bin/binO/Linux.pgi.64.mvapich2.default//ESMF_RegridWeightGen --ignore_unmapped -s /pic/projects/ngee_tropics/amazon/inputdata/ccsm/lnd/clm2/mappingdata/grids/SCRIPgrid_3minx3min_GLOBE-Gardner-mergeGIS_c120922.nc -d ../mkmapgrids/SCRIPgrid_LowerMiss_625x900_nomask_c220324.nc -m conserve -w map_3x3min_GLOBE-Gardner-mergeGIS_to_LowerMiss_625x900_nomask_aave_da_c220324.nc --src_type SCRIP --dst_type SCRIP --64bit_offset
+ 
+srun -n 48 /pic/projects/ngee_tropics/d3m045/esmf/constance/bin/binO/Linux.pgi.64.mvapich2.default//ESMF_RegridWeightGen --ignore_unmapped -s /pic/projects/ngee_tropics/amazon/inputdata/ccsm/lnd/clm2/mappingdata/grids/SCRIPgrid_0.9x1.25_GRDC_c130307.nc -d ../mkmapgrids/SCRIPgrid_LowerMiss_625x900_nomask_c220324.nc -m conserve -w map_0.9x1.25_GRDC_to_LowerMiss_625x900_nomask_aave_da_c220324.nc --src_type SCRIP --dst_type SCRIP --64bit_offset
+ 
+srun -n 48 /pic/projects/ngee_tropics/d3m045/esmf/constance/bin/binO/Linux.pgi.64.mvapich2.default//ESMF_RegridWeightGen --ignore_unmapped -s /pic/projects/ngee_tropics/amazon/inputdata/ccsm/lnd/clm2/mappingdata/grids/SCRIPgrid_360x720_cruncep_c120830.nc -d ../mkmapgrids/SCRIPgrid_LowerMiss_625x900_nomask_c220324.nc -m conserve -w map_360x720cru_cruncep_to_LowerMiss_625x900_nomask_aave_da_c220324.nc --src_type SCRIP --dst_type SCRIP --64bit_offset
+ 
+srun -n 48 /pic/projects/ngee_tropics/d3m045/esmf/constance/bin/binO/Linux.pgi.64.mvapich2.default//ESMF_RegridWeightGen --ignore_unmapped -s /pic/projects/ngee_tropics/amazon/inputdata/ccsm/lnd/clm2/mappingdata/grids/UGRID_1km-merge-10min_HYDRO1K-merge-nomask_c130402.nc -d ../mkmapgrids/SCRIPgrid_LowerMiss_625x900_nomask_c220324.nc -m conserve -w map_1km-merge-10min_HYDRO1K-merge-nomask_to_LowerMiss_625x900_nomask_aave_da_c220324.nc --src_type UGRID --src_meshname landmesh --dst_type SCRIP --64bit_offset
+ 
+srun -n 48 /pic/projects/ngee_tropics/d3m045/esmf/constance/bin/binO/Linux.pgi.64.mvapich2.default//ESMF_RegridWeightGen --ignore_unmapped -s /pic/projects/ngee_tropics/amazon/inputdata/ccsm/lnd/clm2/mappingdata/grids/SCRIPgrid_0.5x0.5_GSDTG2000_c161010.nc -d ../mkmapgrids/SCRIPgrid_LowerMiss_625x900_nomask_c220324.nc -m conserve -w map_0.5x0.5_GSDTG2000_to_LowerMiss_625x900_nomask_aave_da_c220324.nc --src_type SCRIP --dst_type SCRIP --64bit_offset
+
+ 

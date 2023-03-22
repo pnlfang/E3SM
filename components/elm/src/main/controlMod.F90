@@ -287,6 +287,8 @@ contains
          vsfm_lateral_model_type, vsfm_include_seepage_bc
 
     namelist /elm_inparm/ use_hydrstress
+    namelist /elm_inparm/ &
+       lateral_connectivity, domain_decomp_type
 
     namelist /elm_inparm/ &
        lateral_connectivity, domain_decomp_type

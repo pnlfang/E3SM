@@ -20,6 +20,7 @@ module elm_initializeMod
   !use readParamsMod    , only : readParameters
   use readParamsMod    , only : readSharedParameters, readPrivateParameters
   use ncdio_pio        , only : file_desc_t
+  use GridCellConnectionSetType  , only : conn
   
   use BeTRSimulationALM, only : create_betr_simulation_alm
   ! 
@@ -99,6 +100,11 @@ contains
     real(r8), pointer :: dcEdge(:)               ! distance between centroids of grid cells
     real(r8), pointer :: dvEdge(:)               ! distance between vertices
     real(r8), pointer :: areaCell(:)             ! area of grid cells [m^2]
+    real(r8), pointer :: xCell(:)                ! x-coordinate of grid cells [m]
+    real(r8), pointer :: yCell(:)                ! y-coordinate of grid cells [m]
+    real(r8), pointer :: zCell(:)                ! z-coordinate of grid cells [m]
+    real(r8), pointer :: vcosCell(:)             ! cosine of vertical angle                                  [in natural order prior to domain decomposition]
+    real(r8), pointer :: cosEdge(:)              ! cosine of angle between unit vec between cells and edge
     integer           :: nCells_loc              ! number of grid cell level connectivity saved locally
     integer           :: nEdges_loc              ! number of edge length saved locally
     integer           :: maxEdges                ! max number of edges/neighbors
@@ -159,7 +165,7 @@ contains
 
     if (lateral_connectivity) then
        call surfrd_get_grid_conn(fatmlndfrc, cellsOnCell, edgesOnCell, &
-            nEdgesOnCell, areaCell, dcEdge, dvEdge, &
+            nEdgesOnCell, areaCell, xCell, yCell, zCell, vcosCell, dcEdge, dvEdge, cosEdge, &
             nCells_loc, nEdges_loc, maxEdges)
     else
        nullify(cellsOnCell)
@@ -184,7 +190,8 @@ contains
 
     if (lateral_connectivity) then
        call domainlateral_init(ldomain_lateral, cellsOnCell, edgesOnCell, &
-            nEdgesOnCell, areaCell, dcEdge, dvEdge, &
+            nEdgesOnCell, areaCell, xCell, yCell, zCell, vcosCell, &
+            dcEdge, dvEdge, cosEdge, &
             nCells_loc, nEdges_loc, maxEdges)
     endif
 
@@ -470,6 +477,9 @@ contains
     use tracer_varcon         , only : is_active_betr_bgc    
     use clm_time_manager      , only : is_restart
     use ALMbetrNLMod          , only : betr_namelist_buffer
+    use domainLateralMod      , only: ldomain_lateral, domainlateral_init
+    use elm_instlateralMod    , only:  elm_instlateral_biophysics
+    use elm_varctl                , only: lateral_connectivity, domain_decomp_type
     !
     ! !ARGUMENTS    
     implicit none
@@ -599,6 +609,9 @@ contains
          ptr_col=col_pp%zii, default='inactive')
 
     call elm_inst_biogeophys(bounds_proc)
+    if (lateral_connectivity) then
+    call conn%Init(bounds_proc, ldomain_lateral)
+    endif
 
     if(use_betr)then
       !allocate memory for betr simulator
@@ -962,6 +975,9 @@ contains
         end if
     end if
     call t_stopf('init_elm_interface_data & pflotran')
+    if (lateral_connectivity) then
+    call elm_instlateral_biophysics(bounds_proc, ldomain_lateral)
+    endif
     !------------------------------------------------------------
 
     !------------------------------------------------------------       
