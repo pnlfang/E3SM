@@ -11,6 +11,7 @@ module SurfaceAlbedoType
   use elm_varctl     , only : fsurdat, iulog
   use elm_varcon     , only : grlnd
   use ColumnType     , only : col_pp
+  use ncdio_pio      , only : file_desc_t, ncd_io, ncd_pio_openfile, ncd_pio_closefile
    
 
   !
@@ -101,6 +102,7 @@ module SurfaceAlbedoType
      integer  , pointer :: nrad_patch          (:)   => null() ! patch number of canopy layers, above snow for radiative transfer
      real(r8) , pointer :: vcmaxcintsun_patch  (:)   => null() ! patch leaf to canopy scaling coefficient, sunlit leaf vcmax
      real(r8) , pointer :: vcmaxcintsha_patch  (:)   => null() ! patch leaf to canopy scaling coefficient, shaded leaf vcmax
+     real(r8) , pointer :: snoalb_factor       (:)   ! factor to perturb snow albedo for sensitivity analysis
 
    contains
 
@@ -241,10 +243,12 @@ contains
     !
     ! !LOCAL VARIABLES:
     integer :: begp, endp
+    integer :: begg, endg
     integer :: begc, endc
     !---------------------------------------------------------------------
 
     begp = bounds%begp; endp = bounds%endp
+    begg = bounds%begg; endg = bounds%endg
     begc = bounds%begc; endc = bounds%endc
 
     allocate(this%coszen_col         (begc:endc))              ; this%coszen_col         (:)   = spval
@@ -290,6 +294,7 @@ contains
     allocate(this%nrad_patch         (begp:endp))              ; this%nrad_patch         (:)   = 0
     allocate(this%vcmaxcintsun_patch (begp:endp))              ; this%vcmaxcintsun_patch (:)   =spval
     allocate(this%vcmaxcintsha_patch (begp:endp))              ; this%vcmaxcintsha_patch (:)   =spval
+    allocate(this%snoalb_factor      (begg:endg))              ; this%snoalb_factor      (:)   = 1.0_r8
 
   end subroutine InitAllocate
 
@@ -344,6 +349,7 @@ contains
 
   !-----------------------------------------------------------------------
   subroutine InitCold(this, bounds)
+    use fileutils       , only : getfil
     !
     ! Initialize module surface albedos to reasonable values
     !
@@ -354,6 +360,9 @@ contains
     ! !LOCAL VARIABLES:
     integer :: begc, endc
     integer :: begp, endp
+    logical            :: readvar 
+    type(file_desc_t)  :: ncid        
+    character(len=256) :: locfn 
     !-----------------------------------------------------------------------
 
     begp = bounds%begp; endp= bounds%endp
@@ -386,6 +395,13 @@ contains
     this%ftdd_patch     (begp:endp, :) = 1.0_r8
     this%ftid_patch     (begp:endp, :) = 0.0_r8
     this%ftii_patch     (begp:endp, :) = 1.0_r8
+    call getfil (fsurdat, locfn, 0)
+    call ncd_pio_openfile (ncid, locfn, 0)
+    call ncd_io(ncid=ncid, varname='snoalb_factor', flag='read', data=this%snoalb_factor, dim1name=grlnd, readvar=readvar)
+    if (.not. readvar) then
+     this%snoalb_factor(:) = 1.0_r8
+    end if
+    call ncd_pio_closefile(ncid)
 
   end subroutine InitCold
 
