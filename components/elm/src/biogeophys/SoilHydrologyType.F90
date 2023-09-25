@@ -597,6 +597,7 @@ contains
 
     associate(micro_sigma => col_pp%micro_sigma)
       do c = bounds%begc, bounds%endc
+         g = col_pp%gridcell(c)
 
          ! determine h2osfc threshold ("fill & spill" concept)
          ! set to zero for no h2osfc (w/frac_infclust =large)
@@ -605,7 +606,7 @@ contains
          if (micro_sigma(c) > 1.e-6_r8 .and. (this%h2osfcflag /= 0)) then
             d = 0.0
             do p = 1,4
-               fd   = 0.5*(1.0_r8+shr_spfn_erf(d/(micro_sigma(c)*sqrt(2.0)))) - pc
+               fd   = 0.5*(1.0_r8+shr_spfn_erf(d/(micro_sigma(c)*sqrt(2.0)))) - this%pc(g)
                dfdd = exp(-d**2/(2.0*micro_sigma(c)**2))/(micro_sigma(c)*sqrt(2.0*shr_const_pi))
                d    = d - fd/dfdd
             enddo
@@ -621,7 +622,9 @@ contains
          endif
 
          ! set decay factor
-         this%hkdepth_col(c) = 1._r8/2.5_r8
+!         this%hkdepth_col(c) = 1._r8/2.5_r8
+
+         this%hkdepth_col(c) = 1._r8/fdrain(g)
 
       end do
     end associate
