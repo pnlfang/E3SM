@@ -150,6 +150,7 @@ contains
       do fc = 1, num_hydrologyc
          c = filter_hydrologyc(fc)
          !fff(c) = 0.5_r8
+         g = col_pp%gridcell(c)
          fff(c) = fover(g)
          if (zengdecker_2009_with_var_soil_thick) then
             nlevbed = nlev2bed(c)
