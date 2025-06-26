@@ -630,7 +630,7 @@ contains
          qout(c,j)   = -hk(c,j)*num/den
          dqodw1(c,j) = -(-hk(c,j)*dsmpdw(c,j)   + num*dhkdw(c,j))/den
          dqodw2(c,j) = -( hk(c,j)*dsmpdw(c,j+1) + num*dhkdw(c,j))/den
-         rmx(c,j) =  - qout(c,j)*conn%vertcos(c-bounds%begc+1) + qflx_lateral_s(c,j)
+         rmx(c,j) =  - qout(c,j)*conn%vertcos(c-bounds%begc+1) + qflx_lateral_s(c,j)-qflx_rootsoi_col(c,j)
          amx(c,j) =  0._r8
          bmx(c,j) =  dzmm(c,j)*(sdamp+1._r8/dtime) + dqodw1(c,j)
          cmx(c,j) =  dqodw2(c,j)
@@ -656,7 +656,7 @@ contains
             qout(c,j)   = -hk(c,j)*num/den
             dqodw1(c,j) = -(-hk(c,j)*dsmpdw(c,j)   + num*dhkdw(c,j))/den
             dqodw2(c,j) = -( hk(c,j)*dsmpdw(c,j+1) + num*dhkdw(c,j))/den
-            rmx(c,j)    =  qin(c,j)*conn%vertcos(c-bounds%begc+1) - qout(c,j)*conn%vertcos(c-bounds%begc+1) + qflx_lateral_s(c,j)
+            rmx(c,j)    =  qin(c,j)*conn%vertcos(c-bounds%begc+1) - qout(c,j)*conn%vertcos(c-bounds%begc+1) + qflx_lateral_s(c,j)-qflx_rootsoi_col(c,j)
             amx(c,j)    = -dqidw0(c,j)
             bmx(c,j)    =  dzmm(c,j)/dtime - dqidw1(c,j) + dqodw1(c,j)
             cmx(c,j)    =  dqodw2(c,j)
@@ -680,7 +680,7 @@ contains
             qout(c,j)   =  0._r8
             dqodw1(c,j) =  0._r8
 
-            rmx(c,j)    =  qin(c,j)*conn%vertcos(c-bounds%begc+1) - qout(c,j)*conn%vertcos(c-bounds%begc+1) + qflx_lateral_s(c,j)
+            rmx(c,j)    =  qin(c,j)*conn%vertcos(c-bounds%begc+1) - qout(c,j)*conn%vertcos(c-bounds%begc+1) + qflx_lateral_s(c,j)-qflx_rootsoi_col(c,j)
             amx(c,j)    = -dqidw0(c,j)
             bmx(c,j)    =  dzmm(c,j)/dtime - dqidw1(c,j) + dqodw1(c,j)
             cmx(c,j)    =  0._r8
@@ -733,7 +733,7 @@ contains
 
             end if
 
-            rmx(c,j) =  qin(c,j)*conn%vertcos(c-bounds%begc+1) - qout(c,j)*conn%vertcos(c-bounds%begc+1) + qflx_lateral_s(c,j)
+            rmx(c,j) =  qin(c,j)*conn%vertcos(c-bounds%begc+1) - qout(c,j)*conn%vertcos(c-bounds%begc+1) + qflx_lateral_s(c,j)-qflx_rootsoi_col(c,j)
             amx(c,j) = -dqidw0(c,j)
             bmx(c,j) =  dzmm(c,j)/dtime - dqidw1(c,j) + dqodw1(c,j)
             cmx(c,j) =  dqodw2(c,j)
