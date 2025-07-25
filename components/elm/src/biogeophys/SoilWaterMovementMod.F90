@@ -292,6 +292,7 @@ contains
     use TopounitType         , only : top_pp
     use UnstructuredGridType      , only : ugdm_type, ugrid_type
     use domainLateralMod          , only : ldomain_lateral
+    use elm_varctl                , only: lateral_connectivity
     use elm_instlateralMod        , only : ghost_soilstate_vars, ghost_soilhydrology_vars, ghost_col_pp
     use petscsys
     !
@@ -611,9 +612,13 @@ contains
          end if
       end do
 
+      if( lateral_connectivity ) then
       ! Compute lateral flux
-      call ComputeLateralUnsatFlux(bounds, num_hydrologyc, filter_hydrologyc, &
+        call ComputeLateralUnsatFlux(bounds, num_hydrologyc, filter_hydrologyc, &
            num_urbanc, filter_urbanc, soilhydrology_vars, soilstate_vars, jwt, qflx_lateral_s)
+      else
+        qflx_lateral_s(:,:) = 0.0_r8
+      endif
 
       ! Set up r, a, b, and c vectors for tridiagonal solution
 
@@ -630,7 +635,7 @@ contains
          qout(c,j)   = -hk(c,j)*num/den
          dqodw1(c,j) = -(-hk(c,j)*dsmpdw(c,j)   + num*dhkdw(c,j))/den
          dqodw2(c,j) = -( hk(c,j)*dsmpdw(c,j+1) + num*dhkdw(c,j))/den
-         rmx(c,j) =  - qout(c,j)*conn%vertcos(c-bounds%begc+1) + qflx_lateral_s(c,j)-qflx_rootsoi_col(c,j)
+         rmx(c,j) =  qin(c,j) - qout(c,j)*conn%vertcos(c-bounds%begc+1) + qflx_lateral_s(c,j)-qflx_rootsoi_col(c,j)
          amx(c,j) =  0._r8
          bmx(c,j) =  dzmm(c,j)*(sdamp+1._r8/dtime) + dqodw1(c,j)
          cmx(c,j) =  dqodw2(c,j)
@@ -875,8 +880,10 @@ contains
          endif
       end do
 
-      call SolveLateralSatFlow(bounds, num_hydrologyc, filter_hydrologyc, &
+      if( lateral_connectivity ) then
+        call SolveLateralSatFlow(bounds, num_hydrologyc, filter_hydrologyc, &
            num_urbanc, filter_urbanc, soilhydrology_vars, soilstate_vars, jwt)
+      endif
 
       ! compute the water deficit and reset negative liquid water content
       !  Jinyun Tang

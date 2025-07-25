@@ -491,6 +491,7 @@ contains
     use ELMFatesInterfaceMod  , only: ELMFatesTimesteps
     use domainLateralMod      , only: ldomain_lateral, domainlateral_init
     use elm_instlateralMod    , only:  elm_instlateral_biophysics
+    use elm_varctl                , only: lateral_connectivity
     !
     ! !ARGUMENTS
     implicit none
@@ -1012,8 +1013,9 @@ contains
     end if
     call t_stopf('init_elm_interface_data & pflotran')
     !------------------------------------------------------------
-
-    call elm_instlateral_biophysics(bounds_proc, ldomain_lateral)
+    if( lateral_connectivity ) then
+       call elm_instlateral_biophysics(bounds_proc, ldomain_lateral)
+    endif
 
     !------------------------------------------------------------
     ! Write log output for end of initialization
