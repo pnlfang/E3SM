@@ -319,7 +319,7 @@ contains
                   - (forc_rain_col(c) + forc_snow_col(c)  + qflx_floodc(c) + qflx_surf_irrig_col(c) + qflx_over_supply_col(c) &
                   - qflx_evap_tot(c) - qflx_surf(c)  - qflx_h2osfc_surf(c) &
                   - qflx_qrgwl(c) - qflx_drain(c) - qflx_drain_perched(c) - qflx_snwcp_ice(c) &
-                  - qflx_lateral(c)) * dtime
+                  + 1.*qflx_lateral(c)) * dtime
              dwb(c) = (endwb(c)-begwb(c))/dtime
 
           else
@@ -355,7 +355,7 @@ contains
        do c = bounds%begc, bounds%endc
           
           if (abs(errh2o(c)) > 1.e-7_r8) then
-             !found = .true.
+             found = .true.
              indexc = c             
           end if
        end do
@@ -519,7 +519,7 @@ contains
        do c = bounds%begc,bounds%endc
           if (col_pp%active(c)) then
              if (abs(errh2osno(c)) > 1.0e-7_r8) then
-            !    found = .true.
+                found = .true.
                 indexc = c
              end if
           end if
@@ -717,7 +717,7 @@ contains
        do c = bounds%begc,bounds%endc
           if (col_pp%active(c)) then
              if (abs(errsoi_col(c)) > 1.0e-5_r8 ) then
-                !found = .true.
+                found = .true.
                 indexc = c
              end if
           end if
@@ -1048,7 +1048,7 @@ contains
                  - forc_rain_col(c) - forc_snow_col(c)  - qflx_floodc(c) - qflx_irrig(c) &
                  + qflx_evap_tot(c) + qflx_surf(c)  + qflx_h2osfc_surf(c) &
                  + qflx_qrgwl(c) + qflx_drain(c) + qflx_drain_perched(c) + qflx_snwcp_ice(c) &
-                 + qflx_lateral(c)
+                 - 1.*qflx_lateral(c)
 
          else
 

@@ -363,6 +363,8 @@ contains
     integer  :: g, iconn, step,nstep                                     !connections referred grid indices and connection indices
     integer  :: grid_id_up, grid_id_dn, col_id_up, col_id_dn !up and down stream grid indices and column indices
     real(r8) :: qflx_lateral_s(bounds%begc:bounds%endc,1:nlevgrnd+1), qflx_up_to_dn           !lateral flux in unsaturated soil, lateral flux for each interface [mm h2o/s]
+    real(r8) :: qflx_lateral_b(bounds%begc:bounds%endc)           !lateral flux in saturated soil, lateral flux for each interface [mm h2o/s]
+    real(r8) :: zwt_lateral_s(bounds%begc:bounds%endc)           !depth of saturated soil
     real(r8) :: dzg(1:conn%nconn,1:nlevgrnd), dzgmm(1:conn%nconn,1:nlevgrnd)                         !eletation change between neighbor grids [m, mm]  
     real(r8) :: hkl(1:conn%nconn,1:nlevgrnd)                                          !lateral hydraulic conductivity [mm h2o/s]
     real(r8) :: bswl                                         !lateral bsw, set it temporary
@@ -375,7 +377,7 @@ contains
     type(ugrid_type), pointer :: ugrid
     logical :: up_local, dn_local
     integer :: ngrids
-    real(r8) :: hksat_up,hksat_dn
+    real(r8) :: hksat_up,hksat_dn, sumz, tqflx, satdepth,afrac,tqsum
     PetscErrorCode :: ierr
     !-----------------------------------------------------------------------
 
@@ -409,6 +411,8 @@ contains
          qflx_deficit      =>    col_wf%qflx_deficit    , & ! Input:  [real(r8) (:)   ]  water deficit to keep non-negative liquid water content
          qflx_infl         =>    col_wf%qflx_infl       , & ! Input:  [real(r8) (:)   ]  infiltration (mm H2O /s)
          qflx_rootsoi_col  =>    col_wf%qflx_rootsoi    , & ! Input: [real(r8) (:,:) ]  vegetation/soil water exchange (mm H2O/s) (+ = to atm)
+         qflx_lateral_col  =>    col_wf%qflx_lateral    , & ! Input: [real(r8) (:,:) ]  lateral subsurface flow
+         qflx_lat_layer    =>    col_wf%qflx_lat_layer    , & ! Input: [real(r8) (:,:) ]  lateral subsurface flow
          wa                =>    soilhydrology_vars%wa_col             , & ! Output: [real(r8) (:)   ]  water in the unconfined aquifer (mm)
          t_soisno          =>    col_es%t_soisno       , & ! Input:  [real(r8) (:,:) ]  soil temperature (Kelvin)
          ghost_hksat       =>    ghost_soilstate_vars%hksat_col           , & ! Input:  [real(r8) (:,:) ]  hydraulic conductivity at saturation (mm H2O /s)
@@ -469,8 +473,8 @@ contains
          vwc_zwt(c) = watsat(c,nlevbed)
          if(t_soisno(c,jwt(c)+1) < tfrz) then
             vwc_zwt(c) = vwc_liq(c,nlevbed)
-            !do j = nlevbed,nlevgrnd
-             do j = nlevgrnd,nlevgrnd
+            do j = nlevbed,nlevgrnd
+            ! do j = nlevgrnd,nlevgrnd
                if(zwt(c) <= zi(c,j)) then
                   smp1 = hfus*(tfrz-t_soisno(c,j))/(grav*t_soisno(c,j)) * 1000._r8  !(mm)
                   !smp1 = max(0._r8,smp1)
@@ -489,8 +493,8 @@ contains
       do fc = 1, num_hydrologyc
          c = filter_hydrologyc(fc)
          nlevbed = nlev2bed(c)
-         !do j = 1, nlevbed
-         do j = 1,nlevgrnd
+         do j = 1, nlevbed
+         !do j = 1,nlevgrnd
             if ((zwtmm(c) <= zimm(c,j-1))) then
                vol_eq(c,j) = watsat(c,j)
 
@@ -559,7 +563,7 @@ contains
             else
                imped(c,j)=10._r8**(-e_ice*(0.5_r8*(icefrac(c,j)+icefrac(c,min(nlevsoi, j+1)))))
             endif
-            imped(c,j) = 1.0_r8  ! Han Qiu
+            !imped(c,j) = 1.0_r8  ! Han Qiu
             hk(c,j) = imped(c,j)*s1*s2  
             dhkdw(c,j) = imped(c,j)*(2._r8*bsw(c,j)+3._r8)*s2* &
                  (1._r8/(watsat(c,j)+watsat(c,min(nlevsoi, j+1))))
@@ -604,8 +608,8 @@ contains
          c = filter_hydrologyc(fc)
          nlevbed = nlev2bed(c)
          zmm(c,nlevbed+1) = 0.5*(1.e3_r8*zwt(c) + zmm(c,nlevbed))
-         !if(jwt(c) < nlevbed) then
-          if(jwt(c) < nlevgrnd) then
+         if(jwt(c) < nlevbed) then
+         ! if(jwt(c) < nlevgrnd) then
             dzmm(c,nlevbed+1) = dzmm(c,nlevbed)
          else
             dzmm(c,nlevbed+1) = (1.e3_r8*zwt(c) - zmm(c,nlevbed))
@@ -616,6 +620,50 @@ contains
       ! Compute lateral flux
         call ComputeLateralUnsatFlux(bounds, num_hydrologyc, filter_hydrologyc, &
            num_urbanc, filter_urbanc, soilhydrology_vars, soilstate_vars, jwt, qflx_lateral_s)
+        call SolveLateralSatFlow(bounds, num_hydrologyc, filter_hydrologyc, &
+           num_urbanc, filter_urbanc, soilhydrology_vars, soilstate_vars,jwt,qflx_lateral_b,zwt_lateral_s)
+        do fc = 1, num_hydrologyc
+         c = filter_hydrologyc(fc)
+         qflx_lateral_col(c) = 0.0_r8
+         nlevbed = nlev2bed(c)
+#if 0
+         tqflx = qflx_lateral_b(c)
+         satdepth = zwt_lateral_s(c)
+         sumz = 0.0_r8
+         do j = nlevbed, 1, -1
+            sumz = sumz + dz(c,j)
+            if(sumz < satdepth) then
+               qflx_lateral_s(c,j) = qflx_lateral_s(c,j) + dz(c,j)/satdepth * tqflx      
+            else
+               qflx_lateral_s(c,j) = qflx_lateral_s(c,j) + (satdepth - (sumz - dz(c,j)))/satdepth * tqflx     
+               exit 
+            endif
+         end do
+#endif
+#if 1
+         satdepth = zwt_lateral_s(c)
+         sumz = 0._r8
+         afrac = 0._r8
+         tqflx = qflx_lateral_b(c)
+         tqsum = tqflx
+         do j=nlevbed,1,-1
+
+            afrac = afrac + dz(c,j)/satdepth
+            if(afrac > 1.0_r8) then
+               qflx_lateral_s(c,j) = qflx_lateral_s(c,j)+tqsum
+               exit
+            else
+               qflx_lateral_s(c,j) = qflx_lateral_s(c,j)+tqflx*dz(c,j)/satdepth
+               tqsum = tqsum-tqflx*dz(c,j)/satdepth
+            endif
+         enddo
+!               qflx_lateral_s(c,nlevbed) = qflx_lateral_s(c,nlevbed) + tqflx 
+#endif
+         do j = 1, nlevbed
+           qflx_lateral_col(c) = qflx_lateral_col(c) + qflx_lateral_s(c,j)
+           qflx_lat_layer(c,j) = qflx_lateral_s(c,j)
+         end do
+        enddo
       else
         qflx_lateral_s(:,:) = 0.0_r8
       endif
@@ -635,7 +683,9 @@ contains
          qout(c,j)   = -hk(c,j)*num/den
          dqodw1(c,j) = -(-hk(c,j)*dsmpdw(c,j)   + num*dhkdw(c,j))/den
          dqodw2(c,j) = -( hk(c,j)*dsmpdw(c,j+1) + num*dhkdw(c,j))/den
-         rmx(c,j) =  qin(c,j) - qout(c,j)*conn%vertcos(c-bounds%begc+1) + qflx_lateral_s(c,j)-qflx_rootsoi_col(c,j)
+         !rmx(c,j) =  qin(c,j) - qout(c,j)*conn%vertcos(c-bounds%begc+1) + qflx_lateral_s(c,j)-qflx_rootsoi_col(c,j)
+         rmx(c,j) =  qin(c,j) - qout(c,j) + qflx_lateral_s(c,j)-qflx_rootsoi_col(c,j)
+         !rmx(c,j) =  qin(c,j) - qout(c,j)-qflx_rootsoi_col(c,j)
          amx(c,j) =  0._r8
          bmx(c,j) =  dzmm(c,j)*(sdamp+1._r8/dtime) + dqodw1(c,j)
          cmx(c,j) =  dqodw2(c,j)
@@ -661,7 +711,8 @@ contains
             qout(c,j)   = -hk(c,j)*num/den
             dqodw1(c,j) = -(-hk(c,j)*dsmpdw(c,j)   + num*dhkdw(c,j))/den
             dqodw2(c,j) = -( hk(c,j)*dsmpdw(c,j+1) + num*dhkdw(c,j))/den
-            rmx(c,j)    =  qin(c,j)*conn%vertcos(c-bounds%begc+1) - qout(c,j)*conn%vertcos(c-bounds%begc+1) + qflx_lateral_s(c,j)-qflx_rootsoi_col(c,j)
+            !rmx(c,j)    =  qin(c,j)*conn%vertcos(c-bounds%begc+1) - qout(c,j)*conn%vertcos(c-bounds%begc+1) + qflx_lateral_s(c,j)-qflx_rootsoi_col(c,j)
+            rmx(c,j)    =  qin(c,j) - qout(c,j) + qflx_lateral_s(c,j)-qflx_rootsoi_col(c,j)
             amx(c,j)    = -dqidw0(c,j)
             bmx(c,j)    =  dzmm(c,j)/dtime - dqidw1(c,j) + dqodw1(c,j)
             cmx(c,j)    =  dqodw2(c,j)
@@ -685,7 +736,8 @@ contains
             qout(c,j)   =  0._r8
             dqodw1(c,j) =  0._r8
 
-            rmx(c,j)    =  qin(c,j)*conn%vertcos(c-bounds%begc+1) - qout(c,j)*conn%vertcos(c-bounds%begc+1) + qflx_lateral_s(c,j)-qflx_rootsoi_col(c,j)
+            !rmx(c,j)    =  qin(c,j)*conn%vertcos(c-bounds%begc+1) - qout(c,j)*conn%vertcos(c-bounds%begc+1) + qflx_lateral_s(c,j)-qflx_rootsoi_col(c,j)
+            rmx(c,j)    =  qin(c,j) - qout(c,j) + qflx_lateral_s(c,j)-qflx_rootsoi_col(c,j)
             amx(c,j)    = -dqidw0(c,j)
             bmx(c,j)    =  dzmm(c,j)/dtime - dqidw1(c,j) + dqodw1(c,j)
             cmx(c,j)    =  0._r8
@@ -735,10 +787,14 @@ contains
                qout(c,j) = 0._r8
                dqodw1(c,j) = 0._r8
                dqodw2(c,j) = 0._r8
+               !qout(c,j)   = -hk(c,j)*num/den
+               !dqodw1(c,j) = -(-hk(c,j)*dsmpdw(c,j)   + num*dhkdw(c,j))/den
+               !dqodw2(c,j) = -( hk(c,j)*dsmpdw1 + num*dhkdw(c,j))/den
 
             end if
 
-            rmx(c,j) =  qin(c,j)*conn%vertcos(c-bounds%begc+1) - qout(c,j)*conn%vertcos(c-bounds%begc+1) + qflx_lateral_s(c,j)-qflx_rootsoi_col(c,j)
+            !rmx(c,j) =  qin(c,j)*conn%vertcos(c-bounds%begc+1) - qout(c,j)*conn%vertcos(c-bounds%begc+1) + qflx_lateral_s(c,j)-qflx_rootsoi_col(c,j)
+            rmx(c,j) =  qin(c,j) - qout(c,j) + qflx_lateral_s(c,j)-qflx_rootsoi_col(c,j)
             amx(c,j) = -dqidw0(c,j)
             bmx(c,j) =  dzmm(c,j)/dtime - dqidw1(c,j) + dqodw1(c,j)
             cmx(c,j) =  dqodw2(c,j)
@@ -881,8 +937,8 @@ contains
       end do
 
       if( lateral_connectivity ) then
-        call SolveLateralSatFlow(bounds, num_hydrologyc, filter_hydrologyc, &
-           num_urbanc, filter_urbanc, soilhydrology_vars, soilstate_vars, jwt)
+!        call SolveLateralSatFlow(bounds, num_hydrologyc, filter_hydrologyc, &
+!           num_urbanc, filter_urbanc, soilhydrology_vars, soilstate_vars,jwt,qflx_lateral_b)
       endif
 
       ! compute the water deficit and reset negative liquid water content

@@ -16,6 +16,7 @@ module SoilWaterMovementLateralMod
 
   public :: ComputeLateralUnsatFlux
   public :: SolveLateralSatFlow
+  public :: ThetaBasedWaterTable
 
 contains
   !
@@ -395,16 +396,18 @@ contains
 
                hkl = impedl*s1*s2*10.0_r8
 
-               qflx_up_to_dn = -hkl*(smp_dn - smp_up + dzgmm)/den
+               qflx_up_to_dn = -hkl*(smp_dn - smp_up + dzgmm)/den !mm/s
 
                if (up_local) then
                   qflx_lateral_s(col_id_up,j) = qflx_lateral_s(col_id_up,j) &
-                       - qflx_up_to_dn*conn%face_length(iconn)/conn%uparea(iconn)*conn%facecos(iconn)
+                       - qflx_up_to_dn*dz(col_id_up,j)*conn%face_length(iconn)/conn%uparea(iconn)
+!                       - qflx_up_to_dn*conn%face_length(iconn)/conn%uparea(iconn)*conn%facecos(iconn)
                end if
 
                if (dn_local) then
                   qflx_lateral_s(col_id_dn,j) = qflx_lateral_s(col_id_dn,j) &
-                       + qflx_up_to_dn*conn%face_length(iconn)/conn%downarea(iconn)*conn%facecos(iconn)
+                       + qflx_up_to_dn*dz(col_id_dn,j)*conn%face_length(iconn)/conn%downarea(iconn)
+!                       + qflx_up_to_dn*conn%face_length(iconn)/conn%downarea(iconn)*conn%facecos(iconn)
                end if
 
             endif
@@ -419,7 +422,7 @@ contains
 
   !-----------------------------------------------------------------------
   subroutine SolveLateralSatFlow(bounds, num_hydrologyc, filter_hydrologyc, &
-       num_urbanc, filter_urbanc, soilhydrology_vars, soilstate_vars, jwt)
+       num_urbanc, filter_urbanc, soilhydrology_vars, soilstate_vars,jwt,qflx_lateral_s,zwt_lateral_s)
     !
     ! !DESCRIPTION:
     ! Calculate watertable while accounting for lateral flow
@@ -461,7 +464,8 @@ contains
     real(r8) :: depth_up, depth_down
     real(r8) :: dtime, qlat_layer, qlat_tot, qlat_temp, s_y
     real(r8) :: rous, sy, trans
-    real(r8) :: qflx_lateral_s(bounds%begc:bounds%endc)
+    real(r8), intent(out) :: qflx_lateral_s(bounds%begc:bounds%endc)
+    real(r8), intent(out) :: zwt_lateral_s(bounds%begc:bounds%endc)
 
     !-----------------------------------------------------------------------
 
@@ -527,20 +531,24 @@ contains
             depth_down= max(depth_down, 0._r8)
 
             ! calculate transmissivity
-            trans = 1.0_r8*sqrt(hksat_up*hksat_dn)*(depth_up+depth_down)/2._r8*1000._r8 ! (mm2/s)
-            qflx_up_to_dn = -trans*(depth_down-depth_up+conn%dzg(iconn))*1000._r8/den
+            trans = 1.0_r8*sqrt(hksat_up*hksat_dn)*(depth_up+depth_down)/2._r8*1000._r8 ! (mm2/s)  
+            qflx_up_to_dn = -trans*(depth_down-depth_up+conn%dzg(iconn))*1000._r8/den !mm2/s * mm / mm
 
             if (up_local) then
                qflx_lateral_s(col_id_up) = qflx_lateral_s(col_id_up) - &
-                    qflx_up_to_dn/1000._r8*conn%face_length(iconn)/conn%uparea(iconn)*conn%facecos(iconn) * conn%vertcos(col_id_up-bounds%begc+1)
+                    qflx_up_to_dn/1000._r8*conn%face_length(iconn)/conn%uparea(iconn) !mm2/s * 1/(1000 mm) = !mm/s
+!                    qflx_up_to_dn/1000._r8*conn%face_length(iconn)/conn%uparea(iconn)*conn%facecos(iconn) * conn%vertcos(col_id_up-bounds%begc+1)
+               zwt_lateral_s(col_id_up) = (depth_up+depth_down)/2._r8
             end if
 
             if (dn_local) then
                qflx_lateral_s(col_id_dn) = qflx_lateral_s(col_id_dn) + &
-                    qflx_up_to_dn/1000._r8*conn%face_length(iconn)/conn%downarea(iconn)*conn%facecos(iconn) * conn%vertcos(col_id_dn-bounds%begc+1)
+                    qflx_up_to_dn/1000._r8*conn%face_length(iconn)/conn%downarea(iconn)
+               zwt_lateral_s(col_id_dn) = (depth_up+depth_down)/2._r8
+!                    qflx_up_to_dn/1000._r8*conn%face_length(iconn)/conn%downarea(iconn)*conn%facecos(iconn) * conn%vertcos(col_id_dn-bounds%begc+1)
             end if
          enddo
-
+return
          do fc = 1, num_hydrologyc
             c = filter_hydrologyc(fc)
             nlevbed = nlev2bed(c)
@@ -570,7 +578,7 @@ contains
                      qlat_layer=min(qlat_tot,(s_y*(zwt(c) - zi(c,j-1))*1.e3))
                      qlat_layer=max(qlat_layer,0._r8)
 
-                     h2osoi_liq(c,j) = h2osoi_liq(c,j) + qlat_layer
+               !      h2osoi_liq(c,j) = h2osoi_liq(c,j) + qlat_layer
 
                      if(s_y > 0._r8) zwt(c) = zwt(c) - qlat_layer/s_y/1000._r8
 
@@ -586,7 +594,7 @@ contains
 
                      qlat_layer=max(qlat_tot,-(s_y*(zi(c,j) - zwt(c))*1.e3))
                      qlat_layer=min(qlat_layer,0._r8)
-                     h2osoi_liq(c,j) = h2osoi_liq(c,j) + qlat_layer
+               !      h2osoi_liq(c,j) = h2osoi_liq(c,j) + qlat_layer
                      qlat_tot = qlat_tot - qlat_layer
 
                      if (qlat_tot >= 0._r8) then
@@ -615,8 +623,8 @@ contains
             endif
          enddo
 
-         call ThetaBasedWaterTable(bounds, num_hydrologyc, filter_hydrologyc, num_urbanc, filter_urbanc, &
-              soilhydrology_vars, soilstate_vars)
+!         call ThetaBasedWaterTable(bounds, num_hydrologyc, filter_hydrologyc, num_urbanc, filter_urbanc, &
+!              soilhydrology_vars, soilstate_vars)
 
       enddo
 

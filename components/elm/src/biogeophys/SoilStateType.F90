@@ -274,6 +274,7 @@ contains
             ptr_col=this%soilpsi_col)
     end if
 
+
     this%thk_col(begc:endc,-nlevsno+1:0) = spval
     data2dptr => this%thk_col(:,-nlevsno+1:0)
     call hist_addfld2d (fname='SNO_TK', units='W/m-K', type2d='levsno', &

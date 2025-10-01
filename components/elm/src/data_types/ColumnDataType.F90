@@ -30,6 +30,7 @@ module ColumnDataType
   use elm_varctl      , only : pf_hmode, nu_com
   use ch4varcon       , only : allowlakeprod
   use pftvarcon       , only : VMAX_MINSURF_P_vr, KM_MINSURF_P_vr, pinit_beta1, pinit_beta2
+  use elm_varctl      , only: lateral_connectivity
   use soilorder_varcon, only : smax, ks_sorption
   use clm_time_manager, only : is_restart, get_nstep
   use clm_time_manager, only : is_first_step, get_step_size
@@ -476,6 +477,7 @@ module ColumnDataType
     real(r8), pointer :: qflx_h2osfc2topsoi   (:)   => null() ! liquid water coming from surface standing water top soil (mm H2O/s)
     real(r8), pointer :: qflx_snow2topsoi     (:)   => null() ! liquid water coming from residual snow to topsoil (mm H2O/s)
     real(r8), pointer :: qflx_lateral         (:)   => null() ! lateral subsurface flux (mm H2O /s)
+    real(r8), pointer :: qflx_lat_layer       (:,:) => null() ! soil layer lateral flow
     real(r8), pointer :: snow_sources         (:)   => null() ! snow sources (mm H2O/s)
     real(r8), pointer :: snow_sinks           (:)   => null() ! snow sinks (mm H2O/s)
 
@@ -1421,6 +1423,7 @@ contains
      call hist_addfld2d (fname='H2OSOI',  units='mm3/mm3', type2d='levgrnd', &
           avgflag='A', long_name='volumetric soil water (vegetated landunits only)', &
            ptr_col=this%h2osoi_vol, l2g_scale_type='veg')
+
 
     this%smp_l(begc:endc,:) = spval
      call hist_addfld2d (fname='SMP_L',  units='mm h2o', type2d='levgrnd', &
@@ -5340,6 +5343,7 @@ contains
     allocate(this%qflx_h2osfc2topsoi     (begc:endc))             ; this%qflx_h2osfc2topsoi   (:)   = nan
     allocate(this%qflx_snow2topsoi       (begc:endc))             ; this%qflx_snow2topsoi     (:)   = nan
     allocate(this%qflx_lateral           (begc:endc))             ; this%qflx_lateral         (:)   = 0._r8
+    allocate(this%qflx_lat_layer          (begc:endc,1:nlevgrnd))  ; this%qflx_lat_layer              (:,:) = nan
     allocate(this%snow_sources           (begc:endc))             ; this%snow_sources         (:)   = nan
     allocate(this%snow_sinks             (begc:endc))             ; this%snow_sinks           (:)   = nan
     allocate(this%qflx_irrig             (begc:endc))             ; this%qflx_irrig           (:)   = nan
@@ -5396,6 +5400,13 @@ contains
     call hist_addfld1d (fname='QDRAI',  units='mm/s',  &
          avgflag='A', long_name='sub-surface drainage', &
          ptr_col=this%qflx_drain, c2l_scale_type='urbanf')
+
+    if(lateral_connectivity) then
+      this%qflx_lat_layer(begc:endc,:) = spval
+      call hist_addfld2d (fname='QLAT',  units='mm/s', type2d='levgrnd', &
+          avgflag='A', long_name='Soil layer lateral flux', &
+           ptr_col=this%qflx_lat_layer, l2g_scale_type='veg')
+    endif
 
     this%qflx_irr_demand(begc:endc) = spval
     call hist_addfld1d (fname='QIRRIG_WM',  units='mm/s',  &

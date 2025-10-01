@@ -669,7 +669,7 @@ contains
              end if
           enddo
        end do
-
+#if 0
        !============================== QCHARGE =========================================
        ! Water table changes due to qcharge
        do fc = 1, num_hydrologyc
@@ -750,7 +750,7 @@ contains
           endif
           qcharge(c) = qcharge_temp
        enddo
-
+#endif
 
        !==  BASEFLOW ==================================================
        ! perched water table code

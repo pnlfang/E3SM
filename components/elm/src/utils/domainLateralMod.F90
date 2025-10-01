@@ -92,9 +92,7 @@ contains
     allocate(domain_l%ugrid)
     allocate(domain_l%dm_1dof)
     allocate(domain_l%dm_nlevgrnddof)
-
     call get_proc_bounds(begg, endg)
-
     call create_ugrid(domain_l%ugrid, mpicom, begg, endg, ldecomp%gdc2glo (begg:endg), &
          cellsOnCell_old, ncells_loc_old, maxEdges)
 
